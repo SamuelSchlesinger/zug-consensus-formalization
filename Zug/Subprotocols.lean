@@ -5,6 +5,10 @@
   These are axiomatized as structures with their required properties.
   The AB protocol is parameterized over any implementations satisfying
   these specs.
+
+  For safety, only Agreement + Persistence are needed (Part 1).
+  For liveness, we additionally assume timed delay and weak termination
+  bounds that hold after GST (Part 2).
 -/
 
 import Zug.Network
@@ -24,7 +28,7 @@ abbrev Correctness := NodeId → Prop
   outputs v, all correct nodes eventually output v.
 
   For safety, we only need the Agreement property.
-  For liveness, we additionally need Weak Termination and delay bounds.
+  For liveness, we additionally need delay bounds.
 -/
 
 /-- The output that a node observes from an RB instance at a given time.
@@ -34,7 +38,7 @@ structure RBView (V : Type) where
   output_at : NodeId → Time → Option V
 
 /-- RB Agreement: if one correct node outputs v, all correct nodes
-    eventually output the same v. -/
+    eventually output the same v. Outputs are persistent. -/
 structure RBAgreement {V : Type} (correct : Correctness)
     (view : RBView V) : Prop where
   /-- Outputs are persistent: once seen, always seen. -/
@@ -88,12 +92,54 @@ structure SubprotocolViews (V : Type) where
   /-- WBA view for each round. -/
   wba : Nat → WBAView
 
-/-- The agreement properties we assume for all subprotocol instances. -/
+/-- The agreement properties we assume for all subprotocol instances.
+    These are sufficient for the safety proof (Theorem 1). -/
 structure SubprotocolAgreement (V : Type) (correct : Correctness)
     (views : SubprotocolViews V) : Prop where
   /-- Every RB instance satisfies agreement. -/
   rb_agreement : ∀ r : Nat, RBAgreement correct (views.rb r)
   /-- Every WBA instance satisfies agreement. -/
   wba_agreement : ∀ r : Nat, WBAAgreement correct (views.wba r)
+
+/-! ## Timed subprotocol properties (for liveness)
+
+  These extend the safety-only Agreement properties with timing guarantees
+  that hold after GST. They are separate structures so the safety proof
+  remains untouched.
+-/
+
+/-- RB Timed Delay: if any correct node outputs v at time t ≥ GST,
+    all correct nodes output v by t + Δ.
+
+    This is a standard property of RB in the partial synchrony model:
+    after GST, message delivery is bounded by Δ. -/
+structure RBTimedDelay {V : Type} (correct : Correctness)
+    (view : RBView V) (gst delta : Time) : Prop where
+  timed_delay : ∀ N N' t v, correct N → correct N' →
+    gst ≤ t → view.output_at N t = some v →
+    view.output_at N' (t + delta) = some v
+
+/-- WBA Timed Delay: if any correct node outputs b at time t ≥ GST,
+    all correct nodes output b by t + Δ.
+
+    Analogous to RBTimedDelay for binary agreement outputs. -/
+structure WBATimedDelay (correct : Correctness)
+    (view : WBAView) (gst delta : Time) : Prop where
+  timed_delay : ∀ N N' t b, correct N → correct N' →
+    gst ≤ t → view.output_at N t = some b →
+    view.output_at N' (t + delta) = some b
+
+/-- WBA Timed Weak Termination: if all correct nodes provide the same
+    input bit b by time t ≥ GST, all correct nodes output b by t + Δ.
+
+    The `input_at` function records when each node provided its input
+    to this WBA instance: `input_at N = some (time, bit)`. -/
+structure WBATimedWeakTermination (correct : Correctness)
+    (view : WBAView) (gst delta : Time)
+    (input_at : NodeId → Option (Time × Bool)) : Prop where
+  weak_termination : ∀ t b,
+    gst ≤ t →
+    (∀ N, correct N → ∃ ti, ti ≤ t ∧ input_at N = some (ti, b)) →
+    ∀ N', correct N' → view.output_at N' (t + delta) = some b
 
 end Zug
