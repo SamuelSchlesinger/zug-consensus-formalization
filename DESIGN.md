@@ -22,15 +22,19 @@ the axioms, not re-verifying the protocol.
 ## Dependency graph
 
 ```
-Network ← Subprotocols ← Protocol/Defs ← Protocol/Execution
-                               ↓                 ↓
-                     Safety/Monotonicity   Liveness/TimedPropagation
-                               ↓                 ↓
-                     Safety/Ordering       Liveness/RoundProgress
-                               ↓                 ↓
-                     Safety/Theorem        Liveness/CorrectLeader
-                               ↓                 ↓
-                               └──→ Liveness/Theorem ←──┘
+Network ← Subprotocols ← Protocol/Defs
+                               ↓
+                     Safety/Monotonicity
+                          ↓         ↓
+               Safety/Ordering   Protocol/Execution
+                    ↓                  ↓
+               Safety/Theorem   Liveness/TimedPropagation
+                    ↓                  ↓
+                    ↓            Liveness/RoundProgress
+                    ↓                  ↓
+                    ↓            Liveness/CorrectLeader
+                    ↓                  ↓
+                    └──→ Liveness/Theorem ←──┘
                                          ↑
                               Concrete/Instantiation
                                ↑         ↑        ↑

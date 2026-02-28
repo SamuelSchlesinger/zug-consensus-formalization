@@ -4,7 +4,7 @@
 
   Messages: vote b | ready b
   Thresholds (generalized for n > 3f):
-    - Vote: triggered by input b, OR > f votes for b, OR > f readies for b
+    - Vote: triggered by input b, OR > f votes for b
     - Ready: triggered by > q votes for b, OR > f readies for b
     - Output: triggered by > q readies for b
 -/

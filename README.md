@@ -56,7 +56,7 @@ from a standard Byzantine fault model (n > 3f).
 
 ```
 Zug/
-├── Network.lean               — Network model, quorum threshold, partial synchrony
+├── Network.lean               — Time type and partial synchrony parameters
 ├── Subprotocols.lean          — RB/WBA abstract specs (agreement, persistence, timed delay)
 ├── Protocol/
 │   ├── Defs.lean              — Core definitions: AcceptedAt, Ancestor, Finalized, RBOutput
