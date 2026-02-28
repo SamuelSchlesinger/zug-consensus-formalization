@@ -6,7 +6,7 @@
   1. > f correct sent ready(v) at times ≤ t.
   2. By bounded_delay, all correct receive > f readies by t + δ.
   3. All correct amplify → send ready(v) by t + δ.
-  4. All correct receive > 2f by t + 2δ.
+  4. All correct receive > q readies by t + 2δ.
   5. Persist from t + 2δ to t + 3δ.
 -/
 
@@ -17,20 +17,6 @@ namespace Zug.Concrete.RB
 open Zug
 
 variable {V : Type}
-
-/-- Arithmetic helper: max(gst, ts) + d ≤ t + d when gst ≤ t and ts ≤ t. -/
-private theorem max_add_le_add {gst ts t d : Nat}
-    (h1 : gst ≤ t) (h2 : ts ≤ t) :
-    max gst ts + d ≤ t + d :=
-  Nat.add_le_add_right (Nat.max_le.mpr ⟨h1, h2⟩) d
-
-/-- Arithmetic: a + d + d = a + 2 * d. -/
-private theorem add_d_d (a d : Nat) : a + d + d = a + 2 * d := by
-  rw [Nat.add_assoc, ← Nat.two_mul]
-
-/-- Arithmetic: 2 * d ≤ 3 * d. -/
-private theorem two_le_three_mul (d : Nat) : 2 * d ≤ 3 * d :=
-  Nat.mul_le_mul_right d (by omega)
 
 /-- Bounded delivery helper: if correct S sent m at time ts ≤ t,
     gst ≤ t, then correct R receives m by t + d. -/
@@ -60,7 +46,7 @@ theorem rb_timed_delay
     have h_cf : MoreThan inst.cfg.f inst.cfg.n
         (fun S => inst.correct S ∧ ∃ ts, ts ≤ t ∧
           inst.net.sent S (Msg.ready v) ts) := by
-      exact (qa.super_majority_correct_quorum h_rb).mono fun S ⟨hcorr, hrec⟩ =>
+      exact (qa.quorum_correct_subset h_rb).mono fun S ⟨hcorr, hrec⟩ =>
         let ⟨ts, hle, hsent⟩ := np.no_forgery S N _ t hcorr hN hrec
         ⟨hcorr, ts, hle, hsent⟩
     obtain ⟨enum_f, hinj_f, hsat_f⟩ := h_cf
@@ -77,16 +63,16 @@ theorem rb_timed_delay
       intro M hM
       exact beh.ready_from_ready_amplify M (t + inst.delta_net) v hM
         ⟨enum_f, hinj_f, h_recv_at M hM⟩
-    -- Step 4: > 2f correct sent ready(v), each at time ≤ t + δ
-    have h_super : MoreThan (2 * inst.cfg.f) inst.cfg.n
+    -- Step 4: > q correct sent ready(v), each at time ≤ t + δ
+    have h_super : MoreThan inst.cfg.q inst.cfg.n
         (fun S => inst.correct S ∧ ∃ ts, ts ≤ t + inst.delta_net ∧
           inst.net.sent S (Msg.ready v) ts) :=
-      qa.all_correct_super_majority fun M hM _ => ⟨hM, h_all_send M hM⟩
+      qa.all_correct_quorum fun M hM _ => ⟨hM, h_all_send M hM⟩
     obtain ⟨enum_s, hinj_s, hsat_s⟩ := h_super
-    -- N' receives > 2f readies by (t + δ) + δ = t + 2δ
+    -- N' receives > q readies by (t + δ) + δ = t + 2δ
     have hgst' : inst.gst ≤ t + inst.delta_net :=
       Nat.le_trans hgst (Nat.le_add_right t _)
-    have h_recv_s : ∀ i : Fin (2 * inst.cfg.f + 1),
+    have h_recv_s : ∀ i : Fin (inst.cfg.q + 1),
         inst.net.received N' (↑(enum_s i)) (Msg.ready v)
           (t + inst.delta_net + inst.delta_net) := by
       intro i

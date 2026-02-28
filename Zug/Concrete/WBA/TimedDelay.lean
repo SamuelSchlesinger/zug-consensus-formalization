@@ -9,19 +9,8 @@ namespace Zug.Concrete.WBA
 
 open Zug
 
-/-- Arithmetic helpers. -/
-private theorem max_add_le_add {gst ts t d : Nat}
-    (h1 : gst ≤ t) (h2 : ts ≤ t) :
-    max gst ts + d ≤ t + d :=
-  Nat.add_le_add_right (Nat.max_le.mpr ⟨h1, h2⟩) d
-
-private theorem add_d_d (a d : Nat) : a + d + d = a + 2 * d := by
-  rw [Nat.add_assoc, ← Nat.two_mul]
-
-private theorem two_le_three_mul (d : Nat) : 2 * d ≤ 3 * d :=
-  Nat.mul_le_mul_right d (by omega)
-
-/-- Bounded delivery helper. -/
+/-- Bounded delivery helper: if correct S sent m at time ts ≤ t,
+    gst ≤ t, then correct R receives m by t + d. -/
 private theorem deliver_by
     {inst : WBAInstance}
     (np : NetworkProperties Msg inst.correct inst.net inst.gst inst.delta_net)
@@ -48,7 +37,7 @@ theorem wba_timed_delay
     have h_cf : MoreThan inst.cfg.f inst.cfg.n
         (fun S => inst.correct S ∧ ∃ ts, ts ≤ t ∧
           inst.net.sent S (Msg.ready b) ts) := by
-      exact (qa.super_majority_correct_quorum h_wba).mono fun S ⟨hcorr, hrec⟩ =>
+      exact (qa.quorum_correct_subset h_wba).mono fun S ⟨hcorr, hrec⟩ =>
         let ⟨ts, hle, hsent⟩ := np.no_forgery S N _ t hcorr hN hrec
         ⟨hcorr, ts, hle, hsent⟩
     obtain ⟨enum_f, hinj_f, hsat_f⟩ := h_cf
@@ -64,16 +53,16 @@ theorem wba_timed_delay
         exact deliver_by np hcorr hM hgst hts hsent
       exact beh.ready_from_ready_amplify M (t + inst.delta_net) b hM
         ⟨enum_f, hinj_f, h_recv⟩
-    -- Step 3: > 2f correct sent ready at times ≤ t + δ
-    have h_super : MoreThan (2 * inst.cfg.f) inst.cfg.n
+    -- Step 3: > q correct sent ready at times ≤ t + δ
+    have h_super : MoreThan inst.cfg.q inst.cfg.n
         (fun S => inst.correct S ∧ ∃ ts, ts ≤ t + inst.delta_net ∧
           inst.net.sent S (Msg.ready b) ts) :=
-      qa.all_correct_super_majority fun M hM _ => ⟨hM, h_all_send M hM⟩
+      qa.all_correct_quorum fun M hM _ => ⟨hM, h_all_send M hM⟩
     obtain ⟨enum_s, hinj_s, hsat_s⟩ := h_super
-    -- Step 4: N' receives > 2f by (t + δ) + δ = t + 2δ
+    -- Step 4: N' receives > q by (t + δ) + δ = t + 2δ
     have hgst' : inst.gst ≤ t + inst.delta_net :=
       Nat.le_trans hgst (Nat.le_add_right t _)
-    have h_recv_s : ∀ i : Fin (2 * inst.cfg.f + 1),
+    have h_recv_s : ∀ i : Fin (inst.cfg.q + 1),
         inst.net.received N' (↑(enum_s i)) (Msg.ready b)
           (t + inst.delta_net + inst.delta_net) := by
       intro i
@@ -121,16 +110,16 @@ theorem wba_weak_termination
         exact deliver_by np hcorr hM hgst hts hsent
       exact beh.ready_from_vote_quorum M (t + inst.delta_net) b hM
         ⟨enum_v, hinj_v, h_recv_v⟩
-    -- Step 4: > 2f correct sent ready at times ≤ t + δ
-    have h_super : MoreThan (2 * inst.cfg.f) inst.cfg.n
+    -- Step 4: > q correct sent ready at times ≤ t + δ
+    have h_super : MoreThan inst.cfg.q inst.cfg.n
         (fun S => inst.correct S ∧ ∃ ts, ts ≤ t + inst.delta_net ∧
           inst.net.sent S (Msg.ready b) ts) :=
-      qa.all_correct_super_majority fun M hM _ => ⟨hM, h_all_ready M hM⟩
+      qa.all_correct_quorum fun M hM _ => ⟨hM, h_all_ready M hM⟩
     obtain ⟨enum_r, hinj_r, hsat_r⟩ := h_super
-    -- Step 5: N' receives > 2f readies by (t + δ) + δ = t + 2δ
+    -- Step 5: N' receives > q readies by (t + δ) + δ = t + 2δ
     have hgst' : inst.gst ≤ t + inst.delta_net :=
       Nat.le_trans hgst (Nat.le_add_right t _)
-    have h_recv_r : ∀ i : Fin (2 * inst.cfg.f + 1),
+    have h_recv_r : ∀ i : Fin (inst.cfg.q + 1),
         inst.net.received N' (↑(enum_r i)) (Msg.ready b)
           (t + inst.delta_net + inst.delta_net) := by
       intro i

@@ -3,10 +3,10 @@
   behavior axioms, and output definition.
 
   Messages: initial v | echo v | ready v
-  Thresholds (standard Bracha):
+  Thresholds (generalized Bracha for n > 3f):
     - Echo: triggered by (initial, v) from proposer
     - Ready: triggered by > q echoes for v, OR > f readies for v
-    - Output: triggered by > 2f readies for v
+    - Output: triggered by > q readies for v
 -/
 
 import Zug.Concrete.Quorum
@@ -59,18 +59,14 @@ structure RBBehavior {V : Type} (inst : RBInstance V) (qa : QuorumAxioms inst.cf
     MoreThan inst.cfg.f inst.cfg.n
       (fun S => inst.net.received N S (Msg.ready v) t) →
     ∃ t', t' ≤ t ∧ inst.net.sent N (Msg.ready v) t'
-  /-- A correct proposer sends initial. -/
-  proposer_sends : ∀ v, inst.correct inst.proposer →
-    (∃ t, inst.net.sent inst.proposer (Msg.initial v) t) →
-    ∀ t', (∃ t, t ≤ t' ∧ inst.net.sent inst.proposer (Msg.initial v) t) →
-    True  -- placeholder; actual content is in proposer_initial below
   /-- A correct proposer sends initial for exactly one value. -/
   proposer_initial : inst.correct inst.proposer →
     ∃ v t, inst.net.sent inst.proposer (Msg.initial v) t
 
-/-- Node N has RB output v at time t: it has received > 2f readies for v. -/
+/-- Node N has RB output v at time t: it has received > q readies for v,
+    where q = (n + f) / 2. For n = 3f + 1 this equals 2f. -/
 def HasRBOutput {V : Type} (inst : RBInstance V) (N : NodeId) (t : Time) (v : V) : Prop :=
-  MoreThan (2 * inst.cfg.f) inst.cfg.n
+  MoreThan inst.cfg.q inst.cfg.n
     (fun S => inst.net.received N S (Msg.ready v) t)
 
 /-- HasRBOutput is persistent (follows from receipt_persistent). -/
@@ -82,7 +78,7 @@ theorem hasRBOutput_persistent {V : Type} {inst : RBInstance V}
   h.mono (fun S hrec => np.receipt_persistent N S _ t t' hrec hle)
 
 /-- If a correct node has HasRBOutput for two values, they are equal.
-    Proof: > 2f readied v₁ and > 2f readied v₂. By super_majority_intersection,
+    Proof: > q readied v₁ and > q readied v₂. By quorum_intersection,
     some correct C is in both. By no_forgery, C sent ready v₁ and ready v₂.
     By ready_unique, v₁ = v₂. -/
 theorem hasRBOutput_unique {V : Type} {inst : RBInstance V}
@@ -97,8 +93,8 @@ theorem hasRBOutput_unique {V : Type} {inst : RBInstance V}
   -- Persist both to max t₁ t₂
   have h₁' := hasRBOutput_persistent np h₁ (Nat.le_max_left t₁ t₂)
   have h₂' := hasRBOutput_persistent np h₂ (Nat.le_max_right t₁ t₂)
-  -- Both have > 2f senders; find a correct node in the intersection
-  obtain ⟨C, hC_correct, hC_v₁, hC_v₂⟩ := qa.super_majority_intersection h₁' h₂'
+  -- Both have > q senders; find a correct node in the intersection
+  obtain ⟨C, hC_correct, hC_v₁, hC_v₂⟩ := qa.quorum_intersection h₁' h₂'
   -- By no_forgery, C actually sent ready v₁ and ready v₂
   obtain ⟨ts₁, _, hsent₁⟩ := np.no_forgery C N (Msg.ready v₁) _ hC_correct hN hC_v₁
   obtain ⟨ts₂, _, hsent₂⟩ := np.no_forgery C N (Msg.ready v₂) _ hC_correct hN hC_v₂

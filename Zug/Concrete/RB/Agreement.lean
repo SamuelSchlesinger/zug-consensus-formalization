@@ -13,37 +13,6 @@ open Zug
 
 variable {V : Type}
 
-/-- Combine finitely many existential witnesses into one time using
-    persistence. Induction on k. -/
-private theorem collect_at_one_time
-    {k n : Nat}
-    (enum : Fin (k + 1) → Fin n)
-    (hinj : Function.Injective enum)
-    {P : NodeId → Time → Prop}
-    (hpers : ∀ S t t', P S t → t ≤ t' → P S t')
-    (h : ∀ i : Fin (k + 1), ∃ t, P (enum i) t) :
-    ∃ t, ∀ i : Fin (k + 1), P (enum i) t := by
-  induction k with
-  | zero =>
-    obtain ⟨t, ht⟩ := h ⟨0, by omega⟩
-    exact ⟨t, fun i => by
-      have : i = ⟨0, by omega⟩ := Fin.ext (by omega)
-      rw [this]; exact ht⟩
-  | succ k' ih =>
-    have hinj' : Function.Injective (fun i : Fin (k' + 1) => enum ⟨i.val, by omega⟩) := by
-      intro a b hab
-      exact Fin.ext (Fin.mk.inj (hinj hab))
-    obtain ⟨t₁, ht₁⟩ := ih (fun i => enum ⟨i.val, by omega⟩) hinj'
-      (fun i => h ⟨i.val, by omega⟩)
-    obtain ⟨t₂, ht₂⟩ := h ⟨k' + 1, by omega⟩
-    refine ⟨max t₁ t₂, fun i => ?_⟩
-    by_cases h_last : i.val = k' + 1
-    · rw [show i = ⟨k' + 1, by omega⟩ from Fin.ext h_last]
-      exact hpers _ t₂ _ ht₂ (Nat.le_max_right t₁ t₂)
-    · have := ht₁ ⟨i.val, by omega⟩
-      simp only at this
-      exact hpers _ t₁ _ this (Nat.le_max_left t₁ t₂)
-
 /-- If mkRBView outputs some v at (N, t), then HasRBOutput inst N t v. -/
 theorem mkRBView_output_implies_hasRBOutput
     {inst : RBInstance V}
@@ -95,7 +64,7 @@ theorem rb_agreement
     -- Step 1: > f correct sent ready(v)
     have h_correct_f : MoreThan inst.cfg.f inst.cfg.n
         (fun S => inst.correct S ∧ ∃ ts, inst.net.sent S (Msg.ready v) ts) := by
-      exact (qa.super_majority_correct_quorum h_rb).mono fun S ⟨hcorr, hrec⟩ =>
+      exact (qa.quorum_correct_subset h_rb).mono fun S ⟨hcorr, hrec⟩ =>
         let ⟨ts, _, hsent⟩ := np.no_forgery S N _ t hcorr hN hrec
         ⟨hcorr, ts, hsent⟩
     -- Step 2: Every correct node receives > f ready(v) → sends ready(v)
@@ -116,12 +85,12 @@ theorem rb_agreement
         ⟨enum, hinj, h_all⟩
       obtain ⟨ts, _, hs⟩ := beh.ready_from_ready_amplify M t_all v hM h_mt
       exact ⟨ts, hs⟩
-    -- Step 3: > 2f correct nodes sent ready(v)
-    have h_super : MoreThan (2 * inst.cfg.f) inst.cfg.n
+    -- Step 3: > q correct nodes sent ready(v)
+    have h_super : MoreThan inst.cfg.q inst.cfg.n
         (fun S => inst.correct S ∧
           ∃ ts, inst.net.sent S (Msg.ready v) ts) :=
-      qa.all_correct_super_majority fun M hM _ => ⟨hM, h_all_send M hM⟩
-    -- Step 4: N' receives > 2f ready(v) → HasRBOutput
+      qa.all_correct_quorum fun M hM _ => ⟨hM, h_all_send M hM⟩
+    -- Step 4: N' receives > q ready(v) → HasRBOutput
     obtain ⟨enum', hinj', hsat'⟩ := h_super
     have h_del' : ∀ i, ∃ t_recv,
         inst.net.received N' (↑(enum' i)) (Msg.ready v) t_recv := by

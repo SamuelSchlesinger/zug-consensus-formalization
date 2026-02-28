@@ -1,9 +1,8 @@
 /-
-  Zug.Liveness.Theorem: Theorem 2 (Censorship Resilience / Liveness).
+  Zug.Liveness.Theorem: Liveness and the capstone Atomic Broadcast theorem.
 
-  Every correct proposer eventually has one of its rounds committed.
-  Combined with the safety proof (Theorem 1), this ensures that every
-  correct proposer's values are eventually output by all correct nodes.
+  Theorem 2 (Censorship Resilience): every correct proposer eventually
+  has one of its rounds committed and finalized at all correct nodes.
 
   The proof combines:
   - Lemma 3 (round_progress): all correct nodes reach any round r
@@ -12,6 +11,11 @@
     it is committed by GST + 3rΔ + 3Δ.
   - Infinite leadership: every correct node leads infinitely many rounds.
   - Safety agreement (Theorem 1): all correct nodes finalize committed rounds.
+
+  Atomic Broadcast Correctness: combines censorship resilience (liveness)
+  with safety (agreement on RB outputs) to show that for every correct
+  proposer and every starting round, there exists a round where all
+  correct nodes finalize with the same RB-delivered value.
 -/
 
 import Zug.Liveness.CorrectLeader
@@ -74,5 +78,34 @@ theorem censorship_resilience
   intro N hN
   exact ⟨ctx.sync.gst + 3 * r * ctx.sync.delta + 3 * ctx.sync.delta,
     committed_and_accepted_finalized (h_committed N hN) (h_accepted N hN)⟩
+
+/-- Atomic Broadcast Correctness: for every correct node L and every
+    starting round r₀, there exists a round r ≥ r₀ and a proposal p
+    such that L is the leader of r and every correct node eventually
+    finalizes round r with RB output p.
+
+    This combines censorship resilience (Theorem 2) with the safety
+    properties (Theorem 1): finalized rounds carry RB outputs, and
+    RB outputs agree across correct nodes. -/
+theorem atomic_broadcast_correctness
+    (pb : ProtocolBehavior V ctx)
+    (L : NodeId) (hL : ctx.correct L)
+    (r₀ : Nat) :
+    ∃ r p, r ≥ r₀ ∧ ctx.leaders.leader r = L ∧
+      ∀ N, ctx.correct N → ∃ t,
+        Finalized ctx.views N t r ∧
+        RBOutput ctx.views N t r = some p := by
+  -- Step 1: censorship_resilience gives us r where all correct nodes finalize
+  obtain ⟨r, hr_ge, hr_leader, hfin_all⟩ := censorship_resilience pb L hL r₀
+  -- Step 2: L is correct, so L finalizes round r
+  obtain ⟨t_L, hfin_L⟩ := hfin_all L hL
+  -- Step 3: finalized round has an RB output
+  obtain ⟨p, hrb_L⟩ := finalized_has_rb_output pb.agreement hL hfin_L
+  -- Step 4: witness r and p; for each correct N, get matching finalization
+  exact ⟨r, p, hr_ge, hr_leader, fun N hN => by
+    obtain ⟨t_N, hfin_N⟩ := hfin_all N hN
+    obtain ⟨p_N, hrb_N⟩ := finalized_has_rb_output pb.agreement hN hfin_N
+    obtain rfl := rb_output_agreement pb.agreement hL hN hrb_L hrb_N
+    exact ⟨t_N, hfin_N, hrb_N⟩⟩
 
 end Zug

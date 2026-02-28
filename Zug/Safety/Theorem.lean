@@ -1,9 +1,9 @@
 /-
   Zug.Safety.Theorem: Theorem 1 (Safety) from the paper.
 
-  Agreement and Total Order: If any correct node's k-th output is v,
-  then every correct node will eventually output k values and the
-  k-th one is v.
+  Agreement, Total Order, and Validity: all correct nodes finalize
+  the same rounds in the same order, and agree on the RB-delivered
+  value for each finalized round.
 -/
 
 import Zug.Safety.Ordering
@@ -132,8 +132,9 @@ theorem ancestor_or_eq_propagates
 
 /-! ## Cross-node agreement on values -/
 
-/-- The RB output for round r is the same across all correct nodes. -/
-theorem finalized_value_agreement
+/-- RB outputs agree across correct nodes: if two correct nodes both
+    have an RB output for round r, the proposals are identical. -/
+theorem rb_output_agreement
     (agreement : SubprotocolAgreement V correct views)
     {N N' : NodeId} {t t' : Time}
     {r : Nat} {p p' : Proposal V}
@@ -176,5 +177,72 @@ theorem safety_agreement
     has_accepted_persistent agreement hN' hacc'
       (Nat.le_trans (Nat.le_max_right t₁ t₂) (Nat.le_max_left _ t₃)),
     committed_persistent agreement hN' hcom' (Nat.le_max_right _ t₃)⟩
+
+/-! ## Validity: finalized rounds carry agreed-upon values -/
+
+/-- If r is an ancestor-or-equal of an accepted round r', then r itself
+    has an accepted value. Ancestors travel through the parent chain, and
+    each parent has AcceptedAt by the inductive structure. -/
+theorem ancestor_of_accepted_has_accepted
+    (agreement : SubprotocolAgreement V correct views)
+    {N : NodeId} {t : Time} {r : Nat}
+    (hN : correct N)
+    (r' : Nat) {s' : Option Nat}
+    (hacc : AcceptedAt views N t r' s')
+    (hanc : AncestorOrEq views N t r r') :
+    HasAccepted views N t r := by
+  cases hanc with
+  | inl heq => subst heq; exact ⟨s', hacc⟩
+  | inr hanc_strict =>
+    cases hacc with
+    | mk_bot _ v _ hrb =>
+      exact absurd hanc_strict
+        (fun h => no_ancestor_of_none_parent agreement hN hrb h)
+    | mk_parent _ s v p hs hskip hacc_s hrb =>
+      exact ancestor_of_accepted_has_accepted agreement hN s hacc_s
+        (ancestor_of_accepted_goes_to_parent agreement hN hanc_strict
+          (AcceptedAt.mk_parent r' s v p hs hskip hacc_s hrb))
+  termination_by r'
+  decreasing_by omega
+
+/-- A finalized round has an accepted value: Finalized gives an
+    ancestor-or-equal committed round r', and
+    `ancestor_of_accepted_has_accepted` brings acceptance down to r. -/
+theorem finalized_has_accepted
+    (agreement : SubprotocolAgreement V correct views)
+    {N : NodeId} {t : Time} {r : Nat}
+    (hN : correct N)
+    (h : Finalized views N t r) :
+    HasAccepted views N t r := by
+  obtain ⟨r', hanc, ⟨s', hacc⟩, _⟩ := h
+  exact ancestor_of_accepted_has_accepted agreement hN r' hacc hanc
+
+/-- A finalized round has an RB-delivered proposal. -/
+theorem finalized_has_rb_output
+    (agreement : SubprotocolAgreement V correct views)
+    {N : NodeId} {t : Time} {r : Nat}
+    (hN : correct N)
+    (h : Finalized views N t r) :
+    ∃ p, RBOutput views N t r = some p := by
+  obtain ⟨s, hacc⟩ := finalized_has_accepted agreement hN h
+  obtain ⟨v, hrb⟩ := accepted_has_rb_output hacc
+  exact ⟨⟨v, s⟩, hrb⟩
+
+/-- Safety: Validity. If round r is finalized at two correct nodes,
+    they agree on the RB-delivered proposal for that round (both the
+    value and the parent pointer). Combined with Agreement and Total
+    Order, this completes the safety story: all correct nodes produce
+    the same totally-ordered sequence of (round, value) pairs. -/
+theorem safety_validity
+    (agreement : SubprotocolAgreement V correct views)
+    {N N' : NodeId} {t t' : Time} {r : Nat}
+    (hN : correct N) (hN' : correct N')
+    (hfin : Finalized views N t r)
+    (hfin' : Finalized views N' t' r) :
+    ∃ p, RBOutput views N t r = some p ∧ RBOutput views N' t' r = some p := by
+  obtain ⟨p, hrb⟩ := finalized_has_rb_output agreement hN hfin
+  obtain ⟨p', hrb'⟩ := finalized_has_rb_output agreement hN' hfin'
+  obtain rfl := rb_output_agreement agreement hN hN' hrb hrb'
+  exact ⟨p, hrb, hrb'⟩
 
 end Zug

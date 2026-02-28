@@ -2,8 +2,8 @@
   Zug.Concrete.Quorum: Quorum reasoning for concrete subprotocol proofs.
 
   Defines `MoreThan k n P` ("more than k nodes in [0,n) satisfy P")
-  and axiomatizes quorum intersection properties that follow from
-  pigeonhole + n > 3f.
+  and the `QuorumAxioms` structure capturing quorum intersection and
+  counting properties that follow from the BFT fault model.
 -/
 
 import Zug.Concrete.Network
@@ -43,28 +43,32 @@ theorem MoreThan.witness {k n : Nat} {P : NodeId → Prop}
   obtain ⟨enum, _, hsat⟩ := h
   exact ⟨(enum ⟨0, Nat.zero_lt_succ k⟩).val, (enum ⟨0, Nat.zero_lt_succ k⟩).isLt, hsat _⟩
 
-/-- Axiomatized quorum properties. These are consequences of
-    pigeonhole + n > 3f that would require Finset infrastructure
-    to prove from scratch. -/
+/-- Quorum properties for concrete subprotocol proofs.
+
+    These capture the counting arguments that underlie BFT quorum
+    intersection. All thresholds use `q = (n + f) / 2`, the quorum
+    threshold from `NetworkConfig`. Two sets of size > q overlap in
+    > f elements (by pigeonhole), guaranteeing a correct member.
+
+    These properties are derived from `FaultModel` in this file. -/
 structure QuorumAxioms (cfg : NetworkConfig) (correct : Correctness) : Prop where
   /-- All correct nodes have IDs in [0, n). -/
   node_bound : ∀ N, correct N → N < cfg.n
-  /-- Two sets with > 2f members each share a correct node. -/
-  super_majority_intersection :
-    MoreThan (2 * cfg.f) cfg.n A →
-    MoreThan (2 * cfg.f) cfg.n B →
+  /-- Two sets with > q members each share a correct node.
+      Proof sketch: |A| + |B| > 2q ≥ n + f > n, so |A ∩ B| > f,
+      and at most f are faulty, leaving ≥ 1 correct. -/
+  quorum_intersection :
+    MoreThan cfg.q cfg.n A →
+    MoreThan cfg.q cfg.n B →
     ∃ N, correct N ∧ A N ∧ B N
-  /-- A set with > 2f members contains > f correct nodes. -/
-  super_majority_correct_quorum :
-    MoreThan (2 * cfg.f) cfg.n P →
+  /-- A set with > q members contains > f correct nodes.
+      Proof sketch: |P| ≥ q + 1 > f + 1 faulty nodes,
+      so > f are correct. -/
+  quorum_correct_subset :
+    MoreThan cfg.q cfg.n P →
     MoreThan cfg.f cfg.n (fun N => correct N ∧ P N)
   /-- If all correct nodes (with ID < n) satisfy P, then P has
-      > 2f members (since n - f > 2f when n > 3f). -/
-  all_correct_super_majority :
-    (∀ N, correct N → N < cfg.n → P N) →
-    MoreThan (2 * cfg.f) cfg.n P
-  /-- If all correct nodes satisfy P, then P has > q members
-      (since n - f > (n+f)/2 = q when n > 3f). -/
+      > q members (since n - f > q when n > 3f). -/
   all_correct_quorum :
     (∀ N, correct N → N < cfg.n → P N) →
     MoreThan cfg.q cfg.n P

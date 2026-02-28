@@ -68,15 +68,6 @@ def HasAccepted (views : SubprotocolViews V) (N : NodeId) (t : Time)
     (r : Nat) : Prop :=
   ∃ s, AcceptedAt views N t r s
 
-/-- `Fertile views N t r s` means parent s is fertile in round r.
-    This is derived from AcceptedAt for convenience. -/
-def Fertile (views : SubprotocolViews V) (N : NodeId) (t : Time)
-    (r : Nat) (s : Option Nat) : Prop :=
-  match s with
-  | none => ∀ u, u < r → Skippable views N t u
-  | some s => s < r ∧ (∀ u, s < u → u < r → Skippable views N t u) ∧
-              HasAccepted views N t s
-
 /-! ## Ancestor relation -/
 
 /-- The ancestor relation on rounds, derived from the proposal tree.
