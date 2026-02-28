@@ -6,10 +6,6 @@ Binary Agreement and Reliable Broadcast to Atomic
 Broadcast*](https://arxiv.org/abs/2205.06314) (Fackler, Schlesinger,
 Doty, 2022).
 
-**Status:** The full Atomic Broadcast correctness theorem is mechanized
-with zero `sorry`, zero warnings, and zero errors. ~2,800 lines of
-Lean 4 across 21 files, zero external dependencies.
-
 ## What is Zug?
 
 Zug is an Atomic Broadcast (AB) protocol that reduces AB to two
