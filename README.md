@@ -95,6 +95,10 @@ axiom table, concrete subprotocol details, and proof techniques.
   resistance)
 - Verified executable implementation (extracting to a runnable node)
 
+## Acknowledgments
+
+This formalization was developed with assistance from Claude (Anthropic).
+
 ## References
 
 - A. Fackler, S. Schlesinger, M. Doty. *From Weakly-terminating Binary
