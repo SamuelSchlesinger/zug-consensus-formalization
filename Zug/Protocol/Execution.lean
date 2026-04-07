@@ -158,14 +158,12 @@ theorem reached_round_persistent
 theorem reached_round_mono
     {views : SubprotocolViews V} {N : NodeId} {t : Time} {r s : Nat}
     (h : ReachedRound views N t r) (hle : s ≤ r) :
-    ReachedRound views N t s := by
-  intro u hu
-  exact h u (Nat.lt_of_lt_of_le hu hle)
+    ReachedRound views N t s :=
+  fun u hu => h u (Nat.lt_of_lt_of_le hu hle)
 
 /-- ReachedRound 0 is vacuously true (no lower rounds to settle). -/
 theorem reached_round_zero (views : SubprotocolViews V) (N : NodeId) (t : Time) :
-    ReachedRound views N t 0 := by
-  intro s hs
-  exact absurd hs (Nat.not_lt_zero s)
+    ReachedRound views N t 0 :=
+  fun _ hs => absurd hs (Nat.not_lt_zero _)
 
 end Zug

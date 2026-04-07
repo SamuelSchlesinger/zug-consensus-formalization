@@ -84,9 +84,8 @@ theorem has_accepted_timed_propagation
     (hN : ctx.correct N) (hN' : ctx.correct N')
     (hgst : ctx.sync.gst ≤ t)
     (h : HasAccepted ctx.views N t r) :
-    HasAccepted ctx.views N' (t + ctx.sync.delta) r := by
-  obtain ⟨s, hacc⟩ := h
-  exact ⟨s, accepted_at_timed_propagation pb hN hN' hgst hacc⟩
+    HasAccepted ctx.views N' (t + ctx.sync.delta) r :=
+  h.elim fun s hacc => ⟨s, accepted_at_timed_propagation pb hN hN' hgst hacc⟩
 
 /-! ## Timed propagation of ReachedRound -/
 

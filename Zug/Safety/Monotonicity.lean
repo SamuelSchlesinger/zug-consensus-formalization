@@ -73,9 +73,8 @@ theorem has_accepted_persistent
     {N : NodeId} {t t' : Time} {r : Nat}
     (hN : correct N)
     (h : HasAccepted views N t r) (hle : t ≤ t') :
-    HasAccepted views N t' r := by
-  obtain ⟨s, hacc⟩ := h
-  exact ⟨s, accepted_at_persistent agreement hN hacc hle⟩
+    HasAccepted views N t' r :=
+  h.elim fun s hacc => ⟨s, accepted_at_persistent agreement hN hacc hle⟩
 
 /-- Ancestor is persistent. -/
 theorem ancestor_persistent
@@ -96,10 +95,8 @@ theorem ancestor_or_eq_persistent
     {N : NodeId} {t t' : Time} {s r : Nat}
     (hN : correct N)
     (h : AncestorOrEq views N t s r) (hle : t ≤ t') :
-    AncestorOrEq views N t' s r := by
-  cases h with
-  | inl heq => exact Or.inl heq
-  | inr hanc => exact Or.inr (ancestor_persistent agreement hN hanc hle)
+    AncestorOrEq views N t' s r :=
+  h.elim Or.inl (Or.inr <| ancestor_persistent agreement hN · hle)
 
 /-- Finalized is persistent. -/
 theorem finalized_persistent

@@ -95,8 +95,7 @@ theorem has_accepted_propagates
     (h : HasAccepted views N t r) :
     ∃ t', HasAccepted views N' t' r := by
   obtain ⟨s, hacc⟩ := h
-  obtain ⟨t', hacc'⟩ := accepted_at_propagates agreement hN hN' hacc
-  exact ⟨t', s, hacc'⟩
+  exact (accepted_at_propagates agreement hN hN' hacc).elim fun t' h => ⟨t', s, h⟩
 
 /-- Ancestor propagates from correct node N to correct node N'. -/
 theorem ancestor_propagates
@@ -124,11 +123,9 @@ theorem ancestor_or_eq_propagates
     (hN : correct N) (hN' : correct N')
     (h : AncestorOrEq views N t s r) :
     ∃ t', AncestorOrEq views N' t' s r := by
-  cases h with
-  | inl heq => exact ⟨0, Or.inl heq⟩
-  | inr hanc =>
-    obtain ⟨t', h'⟩ := ancestor_propagates agreement hN hN' hanc
-    exact ⟨t', Or.inr h'⟩
+  rcases h with rfl | hanc
+  · exact ⟨0, Or.inl rfl⟩
+  · exact (ancestor_propagates agreement hN hN' hanc).elim fun t' h => ⟨t', Or.inr h⟩
 
 /-! ## Cross-node agreement on values -/
 

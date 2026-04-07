@@ -45,22 +45,18 @@ theorem accepted_has_rb_output {N : NodeId} {t : Time} {r : Nat}
     {s : Option Nat}
     (h : AcceptedAt views N t r s) :
     ∃ v, RBOutput views N t r = some ⟨v, s⟩ := by
-  cases h with
-  | mk_bot _ v _ hrb => exact ⟨v, hrb⟩
-  | mk_parent _ _ v _ _ _ _ hrb => exact ⟨v, hrb⟩
+  cases h <;> exact ⟨_, ‹_›⟩
 
 /-- Accepted parent is strictly less than the round. -/
 theorem accepted_parent_lt {N : NodeId} {t : Time} {r s : Nat}
     (h : AcceptedAt views N t r (some s)) : s < r := by
-  cases h with
-  | mk_parent _ _ _ _ hs _ _ _ => exact hs
+  cases h; assumption
 
 /-- If AcceptedAt with parent (some s), then s has an accepted value. -/
 theorem accepted_parent_has_accepted {N : NodeId} {t : Time} {r s : Nat}
     (h : AcceptedAt views N t r (some s)) :
     HasAccepted views N t s := by
-  cases h with
-  | mk_parent _ _ _ p _ _ hacc _ => exact ⟨p, hacc⟩
+  cases h; exact ⟨_, ‹_›⟩
 
 /-- Accepted parent is unique per correct node. -/
 theorem accepted_parent_unique
@@ -164,12 +160,9 @@ theorem ancestor_of_accepted_goes_to_parent
 theorem ancestor_or_eq_trans {N : NodeId} {t : Time} {a b c : Nat}
     (h₁ : AncestorOrEq views N t a b) (h₂ : AncestorOrEq views N t b c) :
     AncestorOrEq views N t a c := by
-  cases h₂ with
-  | inl heq => subst heq; exact h₁
-  | inr hanc =>
-    cases h₁ with
-    | inl heq => subst heq; exact Or.inr hanc
-    | inr hanc₁ => exact Or.inr (Ancestor.trans a b c hanc₁ hanc)
+  rcases h₂ with rfl | hanc
+  · exact h₁
+  · exact h₁.elim (fun h => h ▸ Or.inr hanc) (Or.inr <| Ancestor.trans a b c · hanc)
 
 /-- Two AncestorOrEq of the same accepted round are comparable.
     Proved by strong induction on the round number. -/
